@@ -34,7 +34,7 @@ WIX GitHub group URL is [https://github.com/wix]
 
 #### (2) Table showing the user's id, name, public_repos, followers
 ```{r echo=FALSE}
-my_token = "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"
+my_token = "*********************"
 Sys.setenv(GITHUB_TOKEN = my_token)
 ```
 
