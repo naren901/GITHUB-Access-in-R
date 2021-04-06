@@ -1,0 +1,227 @@
+---
+title: "Assignment-2 Submission for CIS 8392"
+author: "Narendra Bandi"
+date: "01/04/2021"
+output: html_document
+---
+<style>
+table {
+  margin: auto;
+  border-top: 1px solid #666;
+  border-bottom: 1px solid #666;
+
+}
+table thead th { border-bottom: 1px solid #ddd; }
+th, td { padding: 5px; }
+thead, tfoot, tr:nth-child(even) { background: #eee; }
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=TRUE, message=FALSE}
+library(httr)
+library(gh)
+library(tidyverse)
+ 
+```
+
+#### Describe the GitHub user and provide the URL to the GitHub page of the user 
+
+WIX Engineering develops Technologies for cloud and web application development, and they opensource the source codde.
+WIX GitHub group URL is [https://github.com/wix]
+
+#### (2) Table showing the user's id, name, public_repos, followers
+```{r echo=FALSE}
+my_token = "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"
+Sys.setenv(GITHUB_TOKEN = my_token)
+```
+
+```{r echo = TRUE}
+## Get groups's id, name, public_repos, followers
+wix_git <- gh("/orgs/wix",.limit = Inf, .token =  my_token)
+wix_id <-  wix_git[["id"]]
+wix_name <- wix_git[["name"]]
+wix_public_repo_count <- wix_git[["public_repos"]]
+wix_members <- gh("/orgs/wix/members", .limit = Inf,.token =  my_token) 
+wix_members_count <- length(wix_members)
+wix_followers_count <- wix_git[["followers"]]
+wix_table <- (c("Id" =  wix_id, "Name" = wix_name, 
+                 "Public Repos" = wix_public_repo_count, "Members" = wix_members_count))
+
+
+```
+
+WIX Group details:
+
+```{r echo=TRUE, message = F}
+knitr::kable(wix_table, col.names = "", format = "html", align = "c")
+```
+
+
+##### (3) A table summarizing the followers' id, name, public_repos, followers
+
+```{r echo=TRUE, message=F}
+## Function to get  Group Member details
+members_details_func <- function(x)
+{
+   tryCatch(
+    {
+      member_data <- gh(x[["url"]],.token = my_token, .limit = Inf)
+      id <- member_data["id"]
+      name <- member_data["name"]
+      public_repos <- member_data["public_repos"]
+      followers <- member_data[ "followers"]
+      return(list("Id" = id, "Name" = name, "Public Repos" = public_repos, "Followers" = followers))
+    },
+    error =  function(err) {
+      return(list("Id" = NA, "Name" = NA, "Public Repos" = NA, "Followers" = NA))
+    }
+  ) }
+
+members.df <- map_df(wix_members, members_details_func)
+members.count <- nrow(members.df)
+```
+
+
+The "WIX" Git group has `r members.count` members, Below table shows the details of frist 20 Members:
+
+
+```{r echo= TRUE, message=F}
+knitr::kable(head(members.df, 20) , format = "html", align = "c" )
+
+```
+
+##### (4) A table summarizing the repositories'
+##### name, language, size, forks_count, stargazers_count, watchers_count, open_issues_count
+
+```{r echo= TRUE, message=F}
+wix_repos <- gh("GET /orgs/wix/repos", .limit = Inf, .token =  my_token)
+```
+
+```{r echo = TRUE, message=F}
+## Function to get REPO details
+get_repo_details<- function(x) {
+tryCatch(
+  {
+    name <- x["name"]
+    language <- x["language"]
+    size <- x["size"]
+    forks_count <- x["forks_count"]
+    stargazers_count <- x["stargazers_count"]
+    watchers_count <- x["watchers_count"]
+    open_issues_count <- x["open_issues_count"]
+    
+    return(list("Name" = name, "Language" = language,
+                "Forks Count" = forks_count,"Stargazers Count" = stargazers_count,
+                "Watchers Count" = watchers_count ,"Open Issues Count" = open_issues_count))
+  },
+  error =  function(err) {
+    return(c(
+      "Name" = NA,  "Language" = NA,"Forks Count" = NA,
+      "Stargazers Count"= NA, "Watchers Count" <- NA,  "Open Issues Count" <- NA
+    ))})}
+
+repos.detials.df <- map_df(wix_repos, get_repo_details)
+```
+
+The WIX group on Git hub has `r nrow(repos.detials.df)` repos, Below table shows the details of first 20 repos.
+
+```{r echo= TRUE,message=FALSE}
+knitr::kable(head(repos.detials.df, 20), align = "c",format = "html")
+```
+
+##### (5) A table summarizing the issues. The table should include the following
+##### columns: repo name, the number of open issues in the repo, the number of
+##### closed issues in the repo, the average duration to close an issue in the repo
+
+Below code retrieves the number of Open and Closed issues for each repository, using the 
+R "datediff" function, duration between closing and creation of an issue is calculated, "Minutes" is used as the unit for calculting difference..
+
+The calcuated duration is convreted into Days.
+
+
+```{r echo= TRUE,message = F}
+
+
+get_issue_details <- function(repo)
+{
+  tryCatch(
+  {
+  repo_name <-  repo[["name"]]
+  repo_full_name <- repo[["full_name"]]
+  issue_url = paste0("https://api.github.com/repos","/",repo_full_name,"/", "issues")
+  
+  closed_issues <-  gh(issue_url,state= "closed", .limit = 50, .token = my_token )
+  
+  open_issue_count <- repo[["open_issues_count"]]
+  closed_issues_count <- length(closed_issues)
+  duraton_to_fix_minutes <- 0
+  
+  if (closed_issues_count > 0) {
+    duraton_to_fix_minutes <- map_dbl(closed_issues, function(X)
+    {
+      duration_minutes <- difftime(X$closed_at, 
+                                   X$created_at, units = "mins")
+      duration_minutes
+    })}
+  
+    avg_duration_minutes <- mean(duraton_to_fix_minutes, na.rm = TRUE)
+    avg_duration_days <- round(avg_duration_minutes/(60*24), 1)
+  
+  issue_list<- list("Name" = repo_name,
+                    "Open" = open_issue_count, 
+                    "Closed" = closed_issues_count,
+                    "Avg Duration (Days)" = avg_duration_days )
+  
+  
+  return (issue_list)
+  },
+  error =  function(err) {
+    return (issue_list<- c("Name" = NA,
+                              "Open" = NA, 
+                              "Closed" = NA,
+                              "Avg Duration (Days)" = NA ))
+  })
+}
+ 
+open_close_issue_df <- map_df(wix_repos[1:25], get_issue_details)
+
+```
+ Below table shows the details of Number of  open and close issues, Duration to fix for first 20 repos.
+
+```{r echo= TRUE,message=FALSE}
+knitr::kable( head(open_close_issue_df, 20), align = "c", format = "html")
+```
+
+
+#####  Plots
+```{r echo= FALSE}
+vect_func <- function(x)
+{
+  vect <- c()
+  for (variable in x) 
+  {
+    if (is.null(variable[[1]]))
+    {
+      vect <- append(vect, NA)
+    }
+    else
+    {
+      vect <- append(vect, variable[[1]])
+   }}
+  
+  return (vect)
+  
+repos.detials.df$Language <- vec_func(repos.detials.df$Language)
+repos.detials.df$`Forks count` <- vec_func(repos.detials.df$`Forks count`)
+repos.detials.df$`Stargazers Count` <- vec_func(repos.detials.df$`Stargazers Count` )
+repos.detials.df$`Watchers Count` <- vec_func(repos.detials.df$`Watchers Count`)
+repos.detials.df$`Open Issues Count` <- vec_func(repos.detials.df$`Open Issues Count`)
+repos.detials.sub.df <- repos.detials.df %>% select(-"Name")
+}
+```
+
+
+
