@@ -195,33 +195,3 @@ open_close_issue_df <- map_df(wix_repos[1:25], get_issue_details)
 knitr::kable( head(open_close_issue_df, 20), align = "c", format = "html")
 ```
 
-
-#####  Plots
-```{r echo= FALSE}
-vect_func <- function(x)
-{
-  vect <- c()
-  for (variable in x) 
-  {
-    if (is.null(variable[[1]]))
-    {
-      vect <- append(vect, NA)
-    }
-    else
-    {
-      vect <- append(vect, variable[[1]])
-   }}
-  
-  return (vect)
-  
-repos.detials.df$Language <- vec_func(repos.detials.df$Language)
-repos.detials.df$`Forks count` <- vec_func(repos.detials.df$`Forks count`)
-repos.detials.df$`Stargazers Count` <- vec_func(repos.detials.df$`Stargazers Count` )
-repos.detials.df$`Watchers Count` <- vec_func(repos.detials.df$`Watchers Count`)
-repos.detials.df$`Open Issues Count` <- vec_func(repos.detials.df$`Open Issues Count`)
-repos.detials.sub.df <- repos.detials.df %>% select(-"Name")
-}
-```
-
-
-
